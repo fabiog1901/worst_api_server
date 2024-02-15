@@ -779,11 +779,11 @@ def execute_sql(
             rsl = cur.fetchall()
 
             return {"status": cur.statusmessage, "cols": col_names, "rows": rsl}
-        
+
         except Exception as e:
             # TODO correctly handle error such as PK violations
-            return {"status": str(e), "cols": [], "rows":[]}
-        
+            return {"status": str(e), "cols": [], "rows": []}
+
         finally:
             if user_type == "dml":
                 dml_pool.putconn(conn)

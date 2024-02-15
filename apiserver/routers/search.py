@@ -12,6 +12,7 @@ router = APIRouter(
     tags=[NAME],
 )
 
+
 @router.post(
     "/multi-search",
     dependencies=[Security(dep.get_current_user, scopes=["worst_search"])],

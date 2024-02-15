@@ -203,5 +203,5 @@ async def get_current_user(
                 detail=f"AuthZ exception. Missing scopes: {security_scopes.scopes}",
                 headers={"WWW-Authenticate": authenticate_value},
             )
-    
+
     return token_username

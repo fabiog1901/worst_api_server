@@ -21,10 +21,6 @@ import threading
 import time
 import urllib.parse as parse
 
-from fastapi import HTTPException
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.staticfiles import StaticFiles
-
 AUTH_URL = os.getenv("AUTH_URL")
 TOKEN_URL = os.getenv("TOKEN_URL")
 SCOPE = os.getenv("SCOPE")
@@ -50,45 +46,18 @@ app = FastAPI(
     openapi_url="/worst.openapi.json",
 )
 
-
-class SPAStaticFiles(StaticFiles):
-    async def get_response(self, path: str, scope):
-        try:
-            return await super().get_response(path, scope)
-        except (HTTPException, StarletteHTTPException) as ex:
-            if ex.status_code == 404:
-                return await super().get_response("index.html", scope)
-            else:
-                raise ex
-
-
-app.mount(
-    "/app", SPAStaticFiles(directory="webapp/dist", html=True), name="spa-static-files"
-)
-
-# app.mount("/app", StaticFiles(directory="webapp/dist"))
-
-origins = [
-    "http://localhost:5500",
-    "http://localhost:5500/app",
-    "http://localhost",
-    "http://localhost/app",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:5500",
+        "http://localhost:5500/app",
+        "http://localhost",
+        "http://localhost/app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# @app.get(
-#     "/app",
-# )
-# async def home() -> FileResponse:
-#     return FileResponse("webapp/dist/index.html")
 
 
 @app.get(

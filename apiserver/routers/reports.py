@@ -94,9 +94,10 @@ async def update_report(
 )
 async def delete_report(
     name: str,
-current_user: Annotated[
+    current_user: Annotated[
         User, Security(dep.get_current_user, scopes=["worst_reports_delete"])
-    ],    bg_task: BackgroundTasks,
+    ],
+    bg_task: BackgroundTasks,
 ) -> Report | None:
     x = svc.delete_report(name)
 

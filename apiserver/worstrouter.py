@@ -9,9 +9,6 @@ import apiserver.service as svc
 import datetime as dt
 
 
-
-
-
 class WorstRouter(APIRouter):
     def __init__(
         self,
@@ -174,7 +171,7 @@ class WorstRouter(APIRouter):
                 bg_task.add_task(
                     svc.add_documents, self.__get_search_documents(instance_type, x)
                 )
-                
+
             return x
 
         @self.delete(
