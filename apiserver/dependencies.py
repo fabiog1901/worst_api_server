@@ -16,14 +16,10 @@ from apiserver.models import User
 
 JWKS = os.getenv("JWKS")
 ALGORITHM = os.getenv("ALGORITHM")
-CLIENT_ID = os.getenv("CLIENT_ID")
 ISSUER = os.getenv("ISSUER")
 USERNAME_CLAIM = os.getenv("USERNAME_CLAIM")
+CLIENT_ID = os.getenv("CLIENT_ID")
 
-# to get a string like this run:
-# openssl rand -hex 32
-JWT_KEY = os.getenv("JWT_KEY")
-JWT_KEY_ALGORITHM = os.getenv("JWT_KEY_ALGORITHM")
 
 if not JWKS or not ALGORITHM:
     raise EnvironmentError("JWKS or ALGORITHM env variables not found!")
@@ -134,13 +130,12 @@ def decode_token(token: str):
                 algorithms=[
                     unverified_header["alg"],
                 ],
-                audience=CLIENT_ID,
-                issuer=ISSUER
-                # options=dict(
-                #     verify_aud=False,
-                #     verify_sub=False,
-                #     verify_exp=True,
-                # ),
+                issuer=ISSUER,
+                options=dict(
+                    verify_aud=False,
+                    verify_sub=False,
+                    verify_exp=True,
+                ),
             )
 
         except jwt.ExpiredSignatureError:
@@ -151,23 +146,10 @@ def decode_token(token: str):
         except Exception as e:
             raise HTTPException(401, f"Unable to parse authentication token: {e.args}")
 
-        # Check that we all scopes are present
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid authorization token")
 
     return payload
-
-
-def create_access_token(data: dict, expire_seconds: int) -> str:
-    to_encode = data.copy()
-    to_encode.update(
-        {"exp": dt.datetime.utcnow() + dt.timedelta(seconds=expire_seconds)}
-    )
-
-    try:
-        return jwt.encode(to_encode, JWT_KEY, JWT_KEY_ALGORITHM)
-    except Exception as e:
-        raise e
 
 
 async def get_current_user(
@@ -179,23 +161,26 @@ async def get_current_user(
     else:
         authenticate_value = "Bearer"
 
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Could not validate authentication credentials",
-        headers={"WWW-Authenticate": authenticate_value},
-    )
-
     try:
-        payload = jwt.decode(token, JWT_KEY, JWT_KEY_ALGORITHM)
-    except (jwt.PyJWTError, Exception):
-        raise credentials_exception
+        payload = decode_token(token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.args,
+            headers={"WWW-Authenticate": authenticate_value},
+        )
 
-    token_username = payload.get("username", None)
-    token_scopes = payload.get("scopes", [])
+    token_username = payload.get(USERNAME_CLAIM, None)
 
     if not token_username:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Could not find '{USERNAME_CLAIM}' in JWT",
+            headers={"WWW-Authenticate": authenticate_value},
+        )
 
+    token_scopes = payload["resource_access"][CLIENT_ID]["roles"]
+        
     for scope in security_scopes.scopes:
         if scope not in token_scopes:
             raise HTTPException(

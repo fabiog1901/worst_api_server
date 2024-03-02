@@ -21,16 +21,17 @@ import threading
 import time
 import urllib.parse as parse
 
-AUTH_URL = os.getenv("AUTH_URL")
-TOKEN_URL = os.getenv("TOKEN_URL")
+AUTH_ENDPOINT = os.getenv("AUTH_ENDPOINT")
+TOKEN_ENDPOINT = os.getenv("TOKEN_ENDPOINT")
 SCOPE = os.getenv("SCOPE")
+CLIENT_ID = os.getenv("CLIENT_ID")
+REDIRECT_URI = os.getenv("REDIRECT_URI")
+
+
 SCOPE_CLAIM = os.getenv("SCOPE_CLAIM")
 USERNAME_CLAIM = os.getenv("USERNAME_CLAIM")
 FULLNAME_CLAIM = os.getenv("FULLNAME_CLAIM")
 EMAIL_CLAIM = os.getenv("EMAIL_CLAIM")
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -68,75 +69,17 @@ async def healthcheck() -> dict:
 
 
 @app.get(
-    "/me",
-    dependencies=[Depends(dep.get_current_user)],
-)
-async def get_user_me(
-    current_user: Annotated[User, Depends(dep.get_current_user)]
-) -> User | None:
-    return current_user
-
-
-@app.get(
-    "/authorization_code",
+    "/auth_config",
     tags=["auth"],
 )
-async def get_authorization_code() -> RedirectResponse:
-    return AUTH_URL + "?{}".format(
-        parse.urlencode(
-            {
-                "client_id": CLIENT_ID,
-                "redirect_uri": REDIRECT_URI,
-                "response_type": "code",
-                "scope": SCOPE,
-                "state": hashlib.sha256(os.urandom(32)).hexdigest(),
-            }
-        )
-    )
-
-
-@app.get(
-    "/token",
-    tags=["auth"],
-)
-async def get_token(authorization_code: str):
-    # exchange auth code for token
-    try:
-        r = requests.post(
-            TOKEN_URL,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            data={
-                "grant_type": "authorization_code",
-                "code": authorization_code,
-                "client_id": CLIENT_ID,
-                "client_secret": CLIENT_SECRET,
-                "redirect_uri": REDIRECT_URI,
-            },
-        )
-
-        token = r.json()
-        payload = dep.decode_token(token["id_token"])
-
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        print("Exception: ", e.args)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args
-        )
-
-    user_details = {
-        "username": payload[USERNAME_CLAIM],
-        "fullname": payload[FULLNAME_CLAIM],
-        "email": payload[EMAIL_CLAIM],
-        "scopes": payload[SCOPE_CLAIM],
+async def get_authorization_config() -> dict:
+    return {
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "authorization_endpoint": AUTH_ENDPOINT,
+        "token_endpoint": TOKEN_ENDPOINT,
+        "requested_scopes": SCOPE,
     }
-
-    access_token = dep.create_access_token(user_details, JWT_EXPIRY_SECONDS)
-
-    return Token(
-        access_token=access_token, token_type="bearer", user_details=user_details
-    )
 
 
 # add routers dynamically
